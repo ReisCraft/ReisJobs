@@ -77,6 +77,16 @@
             <url>https://repo.momirealms.net/releases</url>
         </repository>
 
+        <repository>
+            <id>Central Sonatype</id>
+            <url>https://central.sonatype.com/</url>
+        </repository>
+
+        <repository>
+            <id>evenmorefish</id>
+            <url>https://repo.codemc.io/repository/evenmorefis/</url>
+        </repository>
+
     </repositories>
 
     <dependencies>
@@ -90,7 +100,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <version>1.21.5-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
 
@@ -98,18 +108,20 @@
             <groupId>su.nightexpress.nightcore</groupId>
             <artifactId>main</artifactId>
             <version>2.7.6.1</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>su.nightexpress.economybridge</groupId>
             <artifactId>economy-bridge</artifactId>
             <version>1.2.1</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.comphenix.protocol</groupId>
             <artifactId>ProtocolLib</artifactId>
-            <version>5.3.0-SNAPSHOT</version>
+            <version>5.3.0</version>
             <scope>provided</scope>
         </dependency>
 
@@ -142,16 +154,34 @@
         </dependency>
 
         <dependency>
-            <groupId>io.github.arcaneplugins.levelledmobs</groupId>
-            <artifactId>LevelledMobs</artifactId>
-            <version>4.0.5</version>
+            <groupId>io.github.arcaneplugins</groupId>
+            <artifactId>levelledmobs-plugin</artifactId>
+            <version>4.0.3.1</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.github.Redempt</groupId>
+                    <artifactId>Crunch</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>nomaven</groupId>
+                    <artifactId>CommandAPI</artifactId>
+                </exclusion>
+            </exclusions>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>com.oheers.fish</groupId>
-            <artifactId>EvenMoreFish</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <groupId>com.oheers.evenmorefish</groupId>
+            <artifactId>even-more-fish-plugin</artifactId>
+            <version>2.0.3</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/even-more-fish-plugin-2.0.3-shadow.jar</systemPath>
+        </dependency>
+
+        <dependency>
+            <groupId>com.oheers.evenmorefish</groupId>
+            <artifactId>even-more-fish-api</artifactId>
+            <version>2.0.3</version>
             <scope>provided</scope>
         </dependency>
 
