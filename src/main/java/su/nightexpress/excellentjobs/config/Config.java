@@ -6,11 +6,12 @@ import org.bukkit.boss.BarStyle;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.jetbrains.annotations.NotNull;
 import su.nightexpress.excellentjobs.Placeholders;
-import su.nightexpress.excellentjobs.job.impl.OrderReward;
-import su.nightexpress.excellentjobs.job.work.WorkId;
 import su.nightexpress.excellentjobs.util.JobUtils;
 import su.nightexpress.nightcore.config.ConfigValue;
-import su.nightexpress.nightcore.util.*;
+import su.nightexpress.nightcore.util.BukkitThing;
+import su.nightexpress.nightcore.util.Enums;
+import su.nightexpress.nightcore.util.Lists;
+import su.nightexpress.nightcore.util.RankMap;
 import su.nightexpress.nightcore.util.bukkit.NightItem;
 import su.nightexpress.nightcore.util.rankmap.IntRankMap;
 
@@ -74,7 +75,7 @@ public class Config {
     public static final ConfigValue<BarStyle> GENERAL_PROGRESS_BAR_STYLE = ConfigValue.create("General.ProgressBar.Style",
         BarStyle.class, BarStyle.SOLID,
         "Sets style for job progress bar.",
-        "Allowed values: " + StringUtil.inlineEnum(BarStyle.class, ", ")
+        "Allowed values: " + Enums.inline(BarStyle.class, ", ")
     );
 
     public static final ConfigValue<Boolean> PROGRESS_BAR_ACTION_BAR_ENABLED = ConfigValue.create("General.ProgressBar.ActionBar.Enabled",
@@ -136,17 +137,15 @@ public class Config {
         true,
         "Sets whether or not players will lost their jobs for which they don't have permission(s) anymore.");
 
-    public static final ConfigValue<Double> JOBS_ENCHANT_MULTIPLIER_BY_LEVEL_COST = ConfigValue.create("Jobs.Details.Enchant.Multiplier_By_Level_Cost",
-        1D,
-        "Sets amount of percents (%) added to a job's objective XP and payment for each level in enchanting table cost for " + WorkId.ENCHANTING + " job objectives.",
-        "Examples:",
-        "==> With 30 level cost, player will gain 30% more XP and payment.",
-        "==> With 7 level cost, player will gain 7% more XP and payment."
+    public static final ConfigValue<Boolean> JOBS_REWARDS_CLAIM_REQUIRED = ConfigValue.create("Jobs.Rewards.ClaimRequired",
+        false,
+        "Controls whether players must manually claim unlocked job rewards in the GUI.",
+        "[Default is false]"
     );
 
     public static final ConfigValue<Boolean> LEVELLED_MOBS_KILL_ENTITY_ENABLED = ConfigValue.create("LevelledMobs.Integration.KillEntity.Enabled",
         true,
-        "When enabled, multiplies XP and payment amount produced by '" + WorkId.KILL_ENTITY + "' job objective when killing mobs with levels from LevelledMobs."
+        "When enabled, multiplies XP and payment amount produced by  job objective when killing mobs with levels from LevelledMobs."
     );
 
     public static final ConfigValue<Double> LEVELLED_MOBS_KILL_ENTITY_MULTIPLIER = ConfigValue.create("LevelledMobs.Integration.KillEntity.Multiplier",
@@ -190,47 +189,14 @@ public class Config {
         Material.class,
         Material.WHITE_STAINED_GLASS,
         "Block type used for a fake block display entity for zone selection's corners.",
-        "[Default is " + BukkitThing.toString(Material.WHITE_STAINED_GLASS) + "]"
+        "[Default is " + BukkitThing.getValue(Material.WHITE_STAINED_GLASS) + "]"
     );
 
     public static final ConfigValue<Material> ZONES_HIGHLIGHT_BLOCK_WIRE = ConfigValue.create("Zones.Highlighting.WireBlock",
         Material.class,
         Material.CHAIN,
         "Block type used for a fake block display entity for zone selection's corners connections.",
-        "[Default is " + BukkitThing.toString(Material.CHAIN) + "]"
-    );
-
-    public static final ConfigValue<Boolean> SPECIAL_ORDERS_ENABLED = ConfigValue.create("SpecialOrders.Enabled",
-        true,
-        "Sets whether or not Special Orders feature is enabled.",
-        "Special Orders allows players to take daily randomized quests for their jobs.",
-        "Players gets better rewards for completing Special Orders.",
-        "Read wiki for details: " + URL_WIKI_SPECIAL_ORDERS
-    );
-
-    public static final ConfigValue<Integer> SPECIAL_ORDERS_MAX_AMOUNT = ConfigValue.create("SpecialOrders.Max_Amount",
-        3,
-        "Sets how many Special Orders player can have at the same time.",
-        "Set '-1' for unlimited amount.");
-
-    public static final ConfigValue<Long> SPECIAL_ORDERS_COOLDOWN = ConfigValue.create("SpecialOrders.Cooldown",
-        86400L,
-        "Sets amount of time (in seconds) that must be passed before player can take new Special Order for a job.",
-        "Set '-1' to reset after midnight.");
-
-    public static final ConfigValue<Map<String, OrderReward>> SPECIAL_ORDERS_REWARDS = ConfigValue.forMap("SpecialOrders.Rewards",
-        (cfg, path, id) -> OrderReward.read(cfg, path + "." + id, id),
-        (cfg, path, map) ->  map.values().forEach(reward -> reward.write(cfg, path + "." + reward.getId())),
-        Map.of(
-            "money_5000", new OrderReward("money_5000", "$5000", Lists.newList("eco give " + Placeholders.PLAYER_NAME + " 5000")),
-            "money_10000", new OrderReward("money_10000", "$10000", Lists.newList("eco give " + Placeholders.PLAYER_NAME + " 10000")),
-            "money_1500", new OrderReward("money_15000", "$15000", Lists.newList("eco give " + Placeholders.PLAYER_NAME + " 15000")),
-            "item_ingots", new OrderReward("item_ingots", "Irong Ingot (x64), Gold Ingot (x64)", Lists.newList("give " + Placeholders.PLAYER_NAME + " iron_ingot 64", "give " + Placeholders.PLAYER_NAME + " gold_ingot 64"))
-        ),
-        "Here you can define all possible rewards for Special Orders feature.",
-        "In job configuration you can specify which rewards from these will be available to use for that job's orders.",
-        "For player name in commands use '" + Placeholders.PLAYER_NAME + "' placeholder.",
-        "You can also use " + Plugins.PLACEHOLDER_API + " placeholders in commands."
+        "[Default is " + BukkitThing.getValue(Material.CHAIN) + "]"
     );
 
     public static final ConfigValue<Boolean> LEVELING_FIREWORKS = ConfigValue.create("Leveling.Fireworks",
@@ -243,13 +209,14 @@ public class Config {
     );
 
     public static final ConfigValue<Set<CreatureSpawnEvent.SpawnReason>> ABUSE_IGNORE_SPAWN_REASONS = ConfigValue.forSet("Abuse_Protection.Ignore_SpawnReasons",
-        raw -> StringUtil.getEnum(raw, CreatureSpawnEvent.SpawnReason.class).orElse(null),
+        raw -> Enums.get(raw, CreatureSpawnEvent.SpawnReason.class),
         (cfg, path, set) -> cfg.set(path, set.stream().map(Enum::name).toList()),
         Set.of(
             CreatureSpawnEvent.SpawnReason.EGG,
             CreatureSpawnEvent.SpawnReason.SPAWNER,
             CreatureSpawnEvent.SpawnReason.SPAWNER_EGG,
             CreatureSpawnEvent.SpawnReason.DISPENSE_EGG,
+            CreatureSpawnEvent.SpawnReason.TRIAL_SPAWNER,
             CreatureSpawnEvent.SpawnReason.BUILD_SNOWMAN,
             CreatureSpawnEvent.SpawnReason.BUILD_IRONGOLEM,
             CreatureSpawnEvent.SpawnReason.SLIME_SPLIT
@@ -259,7 +226,7 @@ public class Config {
     );
 
     public static final ConfigValue<Set<GameMode>> ABUSE_IGNORE_GAME_MODES = ConfigValue.forSet("Abuse_Protection.Ignore_GameModes",
-        raw -> StringUtil.getEnum(raw, GameMode.class).orElse(null),
+        raw -> Enums.get(raw, GameMode.class),
         (cfg, path, set) -> cfg.set(path, set.stream().map(Enum::name).toList()),
         Set.of(GameMode.CREATIVE),
         "A list of player GameModes where no job XP / currency will be given.",
@@ -291,6 +258,11 @@ public class Config {
         "Vehicles are all non-living entities (e.g. minecarts, boats, etc.)"
     );
 
+    public static final ConfigValue<Boolean> ABUSE_RESTRICT_PET_KILLS = ConfigValue.create("Abuse_Protection.Restrict_Pet_Kills",
+        false,
+        "Controls whether job objectives will produce XP & Income for mobs killed by player's pets."
+    );
+
     public static final ConfigValue<Boolean> STATISTIC_ENABLED = ConfigValue.create("Statistic.Enabled",
         true,
         "Sets whether or not Statistics module is enabled.",
@@ -310,8 +282,8 @@ public class Config {
         return STATISTIC_ENABLED.get();
     }
 
-    public static boolean isSpecialOrdersEnabled() {
-        return SPECIAL_ORDERS_ENABLED.get();
+    public static boolean isRewardClaimRequired() {
+        return JOBS_REWARDS_CLAIM_REQUIRED.get();
     }
 
     public static boolean isInstantPayment() {

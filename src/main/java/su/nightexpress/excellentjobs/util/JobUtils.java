@@ -1,25 +1,22 @@
 package su.nightexpress.excellentjobs.util;
 
 import org.bukkit.*;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.jetbrains.annotations.NotNull;
 import su.nightexpress.economybridge.api.Currency;
+import su.nightexpress.excellentjobs.Placeholders;
 import su.nightexpress.excellentjobs.booster.BoosterUtils;
 import su.nightexpress.excellentjobs.config.Config;
 import su.nightexpress.excellentjobs.config.Keys;
 import su.nightexpress.excellentjobs.config.Lang;
 import su.nightexpress.excellentjobs.hook.HookPlugin;
 import su.nightexpress.excellentjobs.hook.impl.LevelledMobsHook;
-import su.nightexpress.excellentjobs.hook.impl.MythicMobsHook;
+import su.nightexpress.excellentjobs.job.impl.Bonus;
 import su.nightexpress.excellentjobs.job.impl.JobIncome;
-import su.nightexpress.nightcore.util.Lists;
-import su.nightexpress.nightcore.util.PDCUtil;
-import su.nightexpress.nightcore.util.Plugins;
-import su.nightexpress.nightcore.util.TimeUtil;
+import su.nightexpress.nightcore.util.*;
 import su.nightexpress.nightcore.util.bukkit.NightItem;
 import su.nightexpress.nightcore.util.random.Rnd;
 
@@ -32,6 +29,11 @@ public class JobUtils {
 
     public static final int START_LEVEL = 1;
     public static final int START_XP = 0;
+
+    @NotNull
+    public static String formatBonus(double value) {
+        return (value >= 0 ? Lang.OTHER_BONUS_POSITIVE : Lang.OTHER_BONUS_NEGATIVE).text().replace(Placeholders.GENERIC_VALUE, NumberUtil.format(value));
+    }
 
     @NotNull
     public static NightItem getDefaultZoneWand() {
@@ -64,14 +66,14 @@ public class JobUtils {
 
     @NotNull
     public static String formatIncome(@NotNull JobIncome income) {
-        if (income.isEmpty()) return Lang.OTHER_NO_INCOME.getString();
+        if (income.isEmpty()) return Lang.OTHER_NO_INCOME.text();
 
         return formatIncome(income.getCurrencyMap());
     }
 
     @NotNull
     public static String formatIncome(@NotNull Map<Currency, Double> map) {
-        return map.entrySet().stream().map(entry -> entry.getKey().format(entry.getValue())).collect(Collectors.joining(Lang.OTHER_CURRENCY_DELIMITER.getString()));
+        return map.entrySet().stream().map(entry -> entry.getKey().format(entry.getValue())).collect(Collectors.joining(Lang.OTHER_CURRENCY_DELIMITER.text()));
     }
 
     public static int getJobCooldown(@NotNull Player player) {
@@ -92,22 +94,26 @@ public class JobUtils {
         return Modifier.add(0D, 0.01, 5D);
     }
 
+    @NotNull
+    public static Bonus getDefaultXPBonus() {
+        Modifier primary = Modifier.add(0D, 0.01, 5D);
+        Modifier second = Modifier.add(-0.3D, 0D, 1D);
+        return new Bonus(primary, second);
+    }
+
+    @NotNull
+    public static Bonus getDefaultIncomeBonus() {
+        Modifier primary = Modifier.add(0D, 0.01, 5D);
+        Modifier second = Modifier.add(-0.6D, 0D, 1D);
+        return new Bonus(primary, second);
+    }
+
     public static boolean canBeBoosted(@NotNull Currency currency) {
         return Config.isBoostersEnabled() && BoosterUtils.isBoostable(currency);
     }
 
-    public static boolean hasMythicMobs() {
-        return Plugins.isInstalled(HookPlugin.MYTHIC_MOBS);
-    }
-
     public static boolean hasLevelledMobs() {
         return Plugins.isInstalled(HookPlugin.LEVELLED_MOBS);
-    }
-
-    public static boolean isVanillaMob(@NotNull Entity entity) {
-        if (hasMythicMobs() && MythicMobsHook.isMythicMob(entity)) return false;
-
-        return !(entity instanceof Player);
     }
 
     public static int getMobLevel(@NotNull LivingEntity entity) {

@@ -1,5 +1,6 @@
 package su.nightexpress.excellentjobs.job.menu;
 
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
@@ -11,16 +12,16 @@ import su.nightexpress.excellentjobs.JobsAPI;
 import su.nightexpress.excellentjobs.JobsPlugin;
 import su.nightexpress.excellentjobs.api.booster.MultiplierType;
 import su.nightexpress.excellentjobs.config.Config;
-import su.nightexpress.excellentjobs.config.Lang;
 import su.nightexpress.excellentjobs.data.impl.JobData;
 import su.nightexpress.excellentjobs.data.impl.JobLimitData;
-import su.nightexpress.excellentjobs.data.impl.JobOrderData;
-import su.nightexpress.excellentjobs.user.JobUser;
 import su.nightexpress.excellentjobs.job.impl.Job;
 import su.nightexpress.excellentjobs.job.impl.JobState;
+import su.nightexpress.excellentjobs.user.JobUser;
+import su.nightexpress.excellentjobs.util.JobUtils;
 import su.nightexpress.nightcore.config.ConfigValue;
 import su.nightexpress.nightcore.config.FileConfig;
 import su.nightexpress.nightcore.config.Writeable;
+import su.nightexpress.nightcore.core.config.CoreLang;
 import su.nightexpress.nightcore.ui.menu.MenuViewer;
 import su.nightexpress.nightcore.ui.menu.data.ConfigBased;
 import su.nightexpress.nightcore.ui.menu.data.Filled;
@@ -31,21 +32,17 @@ import su.nightexpress.nightcore.ui.menu.type.NormalMenu;
 import su.nightexpress.nightcore.util.Lists;
 import su.nightexpress.nightcore.util.NumberUtil;
 import su.nightexpress.nightcore.util.bukkit.NightItem;
-import su.nightexpress.nightcore.util.time.TimeFormatType;
-import su.nightexpress.nightcore.util.time.TimeFormats;
 
 import java.util.*;
+import java.util.stream.IntStream;
 
 import static su.nightexpress.excellentjobs.Placeholders.*;
-import static su.nightexpress.nightcore.util.text.tag.Tags.*;
+import static su.nightexpress.nightcore.util.text.night.wrapper.TagWrappers.*;
 
-@SuppressWarnings("UnstableApiUsage")
 public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, ConfigBased {
 
     private static final String FILE_NAME = "job_browse.yml";
 
-    private static final String PLACEHOLDER_ORDER  = "%order%";
-    private static final String PLACEHOLDER_STATUS = "%status%";
     private static final String PLACEHOLDER_STATE  = "%state%";
     private static final String DAILY_LIMITS       = "%daily_limits%";
 
@@ -53,10 +50,6 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
     private List<String> jobLoreAvailable;
     private String       jobNameLockedPerm;
     private List<String> jobLoreLockedPerm;
-
-    private List<String> jobClickPreviewInfo;
-    private List<String> jobClickSettingsInfo;
-    private List<String> jobSpecOrderLore;
 
     private Map<JobState, List<String>> jobStateInfo;
 
@@ -132,18 +125,12 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
     private void onJobClick(MenuViewer viewer, @NotNull Job job) {
         Player player = viewer.getPlayer();
 
-        JobUser user = this.plugin.getUserManager().getOrFetch(player);
-        if (user.getData(job).getState() != JobState.INACTIVE) {
-            this.plugin.getJobManager().openJobMenu(player, job);
-            return;
-        }
-
         if (!job.hasPermission(player)) {
-            Lang.ERROR_NO_PERMISSION.getMessage().send(player);
+            CoreLang.ERROR_NO_PERMISSION.message().send(player);
             return;
         }
 
-        this.runNextTick(() -> this.plugin.getJobManager().openPreviewMenu(player, job));
+        this.runNextTick(() -> this.plugin.getJobManager().openLevelsMenu(player, job));
     }
 
     private NightItem replaceJobItem(@NotNull Player player, @NotNull Job job) {
@@ -156,8 +143,8 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
         double xpBoost = JobsAPI.getBoostPercent(player, job, MultiplierType.XP);
         double payBoost = JobsAPI.getBoostPercent(player, job, MultiplierType.INCOME);
 
-        double xpMod = job.getXPMultiplier(level) * 100D;
-        double payMod = job.getPaymentMultiplier(level) * 100D;
+        double xpMod = jobData.getXPBonus() * 100D;
+        double payMod = jobData.getIncomeBonus() * 100D;
 
         double xpGain = xpMod + xpBoost;
         double payGain = payMod + payBoost;
@@ -208,32 +195,24 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
             dailyLimits = Lists.replace(dailyLimits, GENERIC_XP, xpLimits);
         }
 
-        List<String> clickInfo = new ArrayList<>(jobData.isActive() ? this.jobClickSettingsInfo : this.jobClickPreviewInfo);
         List<String> stateInfo = this.jobStateInfo.getOrDefault(state, Collections.emptyList());
-        List<String> orderInfo = new ArrayList<>();
-
-        JobOrderData orderData = jobData.getOrderData();
-        if (!orderData.isEmpty() && !orderData.isExpired()) {
-            orderInfo.addAll(this.jobSpecOrderLore);
-            orderInfo.replaceAll(line -> line.replace(GENERIC_TIME, TimeFormats.formatDuration(orderData.getExpireDate(), TimeFormatType.LITERAL)));
-        }
 
         List<String> finalDailyLimits = dailyLimits;
         return job.getIcon()
-            .setHideComponents(true)
+            .hideAllComponents()
             .setDisplayName(name)
             .setLore(lore)
             .replacement(replacer -> replacer
-                .replace(GENERIC_XP_BONUS, NumberUtil.format(xpGain))
+                .replace(GENERIC_XP_BONUS, JobUtils.formatBonus(xpGain))
                 .replace(GENERIC_XP_MULTIPLIER, NumberUtil.format(xpMod))
                 .replace(GENERIC_XP_BOOST, NumberUtil.format(xpBoost))
-                .replace(GENERIC_INCOME_BONUS, NumberUtil.format(payGain))
+                .replace(GENERIC_INCOME_BONUS, JobUtils.formatBonus(payGain))
                 .replace(GENERIC_INCOME_MULTIPLIER, NumberUtil.format(payMod))
                 .replace(GENERIC_INCOME_BOOST, NumberUtil.format(payBoost))
                 .replace(DAILY_LIMITS, finalDailyLimits)
                 .replace(PLACEHOLDER_STATE, stateInfo)
-                .replace(PLACEHOLDER_STATUS, clickInfo)
-                .replace(PLACEHOLDER_ORDER, orderInfo)
+                .replace("%order%", Collections.emptyList())
+                .replace("%status%", Collections.emptyList())
                 .replace(jobData.replacePlaceholders())
                 .replace(job.replacePlaceholders())
             );
@@ -266,8 +245,7 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
 
     @Override
     public void loadConfiguration(@NotNull FileConfig config, @NotNull MenuLoader loader) {
-        //int[] defSlots = new int[]{11,12,13,14,15,21,22,23};
-        int[] defSlots = new int[]{10,12,14,16,29,31,33};
+        int[] defSlots = new int[]{20,21,22,23,24,31,30,32};
 
         this.gridAuto = ConfigValue.create("Job.Grid.Auto", false).read(config);
 
@@ -288,75 +266,73 @@ public class JobsMenu extends NormalMenu<JobsPlugin> implements Filled<Job>, Con
         ).read(config);
 
         this.jobNameAvailable = ConfigValue.create("Job.Available.Name",
-            LIGHT_YELLOW.wrap(BOLD.wrap(JOB_NAME))
+            SOFT_YELLOW.wrap(BOLD.wrap(JOB_NAME))
         ).read(config);
 
         this.jobLoreAvailable = ConfigValue.create("Job.Available.Lore", Lists.newList(
             PLACEHOLDER_STATE,
-            DARK_GRAY.wrap(LIGHT_GREEN.wrap("✔") + " Employees: " + GRAY.wrap(JOB_EMPLOYEES_TOTAL)),
+            DARK_GRAY.wrap(GREEN.wrap("✔") + " Workers: " + GRAY.wrap(JOB_EMPLOYEES_TOTAL)),
             EMPTY_IF_BELOW,
             JOB_DESCRIPTION,
             EMPTY_IF_ABOVE,
-            LIGHT_YELLOW.wrap(BOLD.wrap("Your Stats:")),
-            LIGHT_YELLOW.wrap("▪ " + LIGHT_GRAY.wrap("XP: ") + JOB_DATA_XP + LIGHT_GRAY.wrap("/") + JOB_DATA_XP_MAX),
-            LIGHT_YELLOW.wrap("▪ " + LIGHT_GRAY.wrap("Level: ") + JOB_DATA_LEVEL + LIGHT_GRAY.wrap("/") + JOB_DATA_LEVEL_MAX),
-            LIGHT_YELLOW.wrap("▪ " + LIGHT_GRAY.wrap("XP Bonus: ") + "+" + GENERIC_XP_BONUS + "%") + " " + GRAY.wrap("(" + GENERIC_XP_MULTIPLIER + " + " + GENERIC_XP_BOOST + ")"),
-            LIGHT_YELLOW.wrap("▪ " + LIGHT_GRAY.wrap("Income Bonus: ") + "+" + GENERIC_INCOME_BONUS + "%") + " " + GRAY.wrap("(" + GENERIC_INCOME_MULTIPLIER + " + " + GENERIC_INCOME_BOOST + ")"),
+            SOFT_YELLOW.wrap(BOLD.wrap("Your Stats:")),
+            SOFT_YELLOW.wrap("▪ " + GRAY.wrap("XP: ") + JOB_DATA_XP + GRAY.wrap("/") + JOB_DATA_XP_MAX),
+            SOFT_YELLOW.wrap("▪ " + GRAY.wrap("Level: ") + JOB_DATA_LEVEL + GRAY.wrap("/") + JOB_DATA_LEVEL_MAX),
+            SOFT_YELLOW.wrap("▪ " + GRAY.wrap("XP Bonus: ") + GENERIC_XP_BONUS) + " " + GRAY.wrap("(" + GENERIC_XP_MULTIPLIER + " + " + GENERIC_XP_BOOST + ")"),
+            SOFT_YELLOW.wrap("▪ " + GRAY.wrap("Income Bonus: ") + GENERIC_INCOME_BONUS) + " " + GRAY.wrap("(" + GENERIC_INCOME_MULTIPLIER + " + " + GENERIC_INCOME_BOOST + ")"),
             EMPTY_IF_BELOW,
             DAILY_LIMITS,
             EMPTY_IF_BELOW,
-            PLACEHOLDER_ORDER,
-            EMPTY_IF_BELOW,
-            PLACEHOLDER_STATUS
+            SOFT_YELLOW.wrap("→ " + UNDERLINED.wrap("Click to view levels"))
         )).read(config);
 
         this.jobNameLockedPerm = ConfigValue.create("Job.Locked_Permission.Name",
-            LIGHT_RED.wrap("[Locked]") + " " + LIGHT_GRAY.wrap(JOB_NAME)
+            RED.wrap("[Locked]") + " " + GRAY.wrap(JOB_NAME)
         ).read(config);
 
         this.jobLoreLockedPerm = ConfigValue.create("Job.Locked_Permission.Lore", Lists.newList(
-            LIGHT_GRAY.wrap("Upgrade your " + LIGHT_RED.wrap("/rank") + " to access this job.")
+            GRAY.wrap("Upgrade your " + RED.wrap("/rank") + " to access this job.")
         )).read(config);
 
 
 
 
         this.jobDailyLimits = ConfigValue.create("Job.DailyLimits.Header", Lists.newList(
-            LIGHT_YELLOW.wrap(BOLD.wrap("Daily Limits:")),
+            SOFT_YELLOW.wrap(BOLD.wrap("Daily Limits:")),
             GENERIC_CURRENCY,
             GENERIC_XP
         )).read(config);
 
         this.jobDailyCurrencyLimit = ConfigValue.create("Job.DailyLimits.Currency", Lists.newList(
-            LIGHT_YELLOW.wrap("• " + LIGHT_GRAY.wrap(CURRENCY_NAME + ": ") + GENERIC_CURRENT + LIGHT_GRAY.wrap("/") + GENERIC_TOTAL)
+            SOFT_YELLOW.wrap("• " + GRAY.wrap(CURRENCY_NAME + ": ") + GENERIC_CURRENT + GRAY.wrap("/") + GENERIC_TOTAL)
         )).read(config);
 
         this.jobDailyXPLimit = ConfigValue.create("Job.DailyLimits.XP", Lists.newList(
-            LIGHT_YELLOW.wrap("• " + LIGHT_GRAY.wrap("XP: ") + GENERIC_CURRENT + LIGHT_GRAY.wrap("/") + GENERIC_TOTAL)
-        )).read(config);
-
-        this.jobClickPreviewInfo = ConfigValue.create("Job.ClickInfo.Preview", Lists.newList(
-            LIGHT_GREEN.wrap("[▶] " + LIGHT_GRAY.wrap("Click to") + " preview" + LIGHT_GRAY.wrap("."))
-        )).read(config);
-
-        this.jobClickSettingsInfo = ConfigValue.create("Job.ClickInfo.Settings", Lists.newList(
-            LIGHT_YELLOW.wrap("[▶] " + LIGHT_GRAY.wrap("Click to") + " open settings" + LIGHT_GRAY.wrap("."))
+            SOFT_YELLOW.wrap("• " + GRAY.wrap("XP: ") + GENERIC_CURRENT + GRAY.wrap("/") + GENERIC_TOTAL)
         )).read(config);
 
         this.jobStateInfo = ConfigValue.forMapByEnum("Job.StateInfo", JobState.class,
             (cfg, path, id) -> cfg.getStringList(path),
             map -> {
-                map.put(JobState.PRIMARY, Lists.newList(DARK_GRAY.wrap(LIGHT_GREEN.wrap("✔") + " This is your " + GRAY.wrap("Primary") + " job.")));
-                map.put(JobState.SECONDARY, Lists.newList(DARK_GRAY.wrap(LIGHT_GREEN.wrap("✔") + " This is your " + GRAY.wrap("Secondary") + " job.")));
-                map.put(JobState.INACTIVE, Lists.newList(DARK_GRAY.wrap(LIGHT_RED.wrap("✘") + " You are " + GRAY.wrap("not an employee") + " of this job.")));
+                map.put(JobState.PRIMARY, Lists.newList(DARK_GRAY.wrap(GREEN.wrap("✔") + " This is your " + GRAY.wrap("Primary") + " job.")));
+                map.put(JobState.SECONDARY, Lists.newList(DARK_GRAY.wrap(GREEN.wrap("✔") + " This is your " + GRAY.wrap("Secondary") + " job.")));
+                map.put(JobState.INACTIVE, Lists.newList(DARK_GRAY.wrap(RED.wrap("✘") + " You are " + GRAY.wrap("not an employee") + " of this job.")));
             }
         ).read(config);
 
-        this.jobSpecOrderLore = ConfigValue.create("Job.Order.Info", Lists.newList(
-            LIGHT_YELLOW.wrap(BOLD.wrap("Special Order:")),
-            LIGHT_YELLOW.wrap("▪ " + LIGHT_GRAY.wrap("Timeleft: ") + GENERIC_TIME)
-        )).read(config);
+        loader.addDefaultItem(NightItem.fromType(Material.GRAY_STAINED_GLASS_PANE)
+            .setHideTooltip(true)
+            .toMenuItem()
+            .setPriority(-1)
+            .setSlots(IntStream.range(9, 45).toArray())
+        );
 
+        loader.addDefaultItem(NightItem.fromType(Material.BLACK_STAINED_GLASS_PANE)
+            .setHideTooltip(true)
+            .toMenuItem()
+            .setPriority(-1)
+            .setSlots(0,1,2,3,4,5,6,7,8,36,37,38,39,40,41,42,43,44)
+        );
 
         loader.addDefaultItem(MenuItem.buildNextPage(this, 35).setPriority(10));
         loader.addDefaultItem(MenuItem.buildPreviousPage(this, 27).setPriority(10));
